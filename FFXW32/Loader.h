@@ -8,11 +8,19 @@
 
 namespace Loader
 {
-	bool Initialize();
-	bool MapExecutable();
-	void MapTLS();
+	enum class GameVersion
+	{
+		None,
+		SkyrimOrEarlier,
+		Fallout4,
+	};
+
+	bool Initialize(GameVersion Version);
+	bool MapExecutable(GameVersion Version);
+	bool MapTLS(GameVersion Version);
 	void SaveResourceToDisk();
 	void ForceReference();
+	GameVersion GetGameVersion();
 
 	HCUSTOMMODULE MmGetLibrary(LPCSTR Name, void *Userdata);
 	FARPROC MmGetLibraryProcAddr(HCUSTOMMODULE Module, LPCSTR Name, void *Userdata);
@@ -30,5 +38,4 @@ namespace Loader
 		DetourFunction(Target, *reinterpret_cast<uintptr_t *>(&Destination), Call);
 	}
 
-	void ForceReference();
 }

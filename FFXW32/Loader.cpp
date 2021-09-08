@@ -8,67 +8,130 @@
 // Relocations aren't supported. To work around this, force this executable to be loaded at a base address of 0x10000. The CK.exe will be emulated 
 // at a base address of 0x400000.
 //
+constexpr uintptr_t MinExeVirtualAddress = 0x400000;
+constexpr uintptr_t MaxExeVirtualAddress = 0x7CC8000;
+
 #pragma comment(linker, "/BASE:0x10000")
 #pragma bss_seg(push)
 #pragma bss_seg(".CKXCODE")
-volatile char FORCE_LOAD_REQUIRED_DATA[0x1FC9000];
+volatile char FORCE_LOAD_REQUIRED_DATA[(MinExeVirtualAddress - 0x10000) + MaxExeVirtualAddress];
 #pragma bss_seg(pop)
 
 namespace Loader
 {
+	GameVersion CurrentGameVersion = GameVersion::None;
+
 	const static auto BAD_DLL = reinterpret_cast<HCUSTOMMODULE>(0xDEADBEEF);
 	const static auto BAD_IMPORT = reinterpret_cast<FARPROC>(0xFEFEDEDE);
 
-	bool Initialize()
+	bool Initialize(GameVersion Version)
 	{
-		if (!MapExecutable())
+		if (CurrentGameVersion != GameVersion::None)
+			return true;
+
+		CurrentGameVersion = Version;
+
+		if (!MapExecutable(Version))
 			return false;
 
-		// Allocate arbitrary TLS chunk
-		MapTLS();
+		if (!MapTLS(Version))
+			return false;
 
-		// Kill MemoryContextTracker ctor/dtor
-		PatchMemory(0x948500, { 0xC2, 0x10, 0x00 });
-		PatchMemory(0x948560, { 0xC3 });
-		PatchMemory(0x9484E9, { 0x5E, 0xC3 });
+		if (Version == GameVersion::SkyrimOrEarlier)
+		{
+			// Kill MemoryContextTracker ctor/dtor
+			PatchMemory(0x948500, { 0xC2, 0x10, 0x00 });
+			PatchMemory(0x948560, { 0xC3 });
+			PatchMemory(0x9484E9, { 0x5E, 0xC3 });
 
-		// Replace memory allocators with malloc and kill initializers
-		PatchMemory(0x4010A0, { 0xC3 });
-		DetourFunction(0x947D20, &CreationKit::MemoryManager_Alloc);
-		DetourFunction(0x947320, &CreationKit::MemoryManager_Free);
-		DetourFunction(0x4014D0, &CreationKit::ScrapHeap_Alloc);
-		DetourFunction(0x931990, &CreationKit::ScrapHeap_Free);
+			// Replace memory allocators with malloc and kill initializers
+			PatchMemory(0x4010A0, { 0xC3 });
+			DetourFunction(0x947D20, &CreationKit::MemoryManager_Alloc);
+			DetourFunction(0x947320, &CreationKit::MemoryManager_Free);
 
-		// Patch BSOStream::Write in LipSynchAnim::SaveToFile to use our own file handling
-		PatchMemory(0x587810, { 0x90, 0x90, 0x90 });// Kill +0x4 pointer adjustment
-		DetourFunction(0x587816, &LipSynchAnim::hk_call_00587816, true);
-		DetourFunction(0x58781F, &LipSynchAnim::hk_call_00587816, true);
+			// Patch BSOStream::Write in LipSynchAnim::SaveToFile to use our own file handling
+			PatchMemory(0x587810, { 0x90, 0x90, 0x90 });// Kill +0x4 pointer adjustment
+			DetourFunction(0x587816, &LipSynchAnim::hk_call_00587816, true);
+			DetourFunction(0x58781F, &LipSynchAnim::hk_call_00587816, true);
 
-		// Patch WinMain in order to only run CRT initialization
-		PatchMemory(0x48E8B0, { 0xC2, 0x10, 0x00 });
-		PatchMemory(0xE84A16, { 0xEB, 0x0E });
-		((void(__cdecl *)())(0xE84A7B))();
+			// Patch WinMain in order to only run CRT initialization
+			PatchMemory(0x48E8B0, { 0xC2, 0x10, 0x00 });
+			PatchMemory(0xE84A16, { 0xEB, 0x0E });
+			((void(__cdecl *)())(0xE84A7B))();
 
-		CoInitializeEx(nullptr, 0);				// COM components
-		((void(*)())(0x934B90))();				// BSResource (filesystem)
-		((void(*)())(0x469FE0))();				// LipSynchManager::Init()
-		PatchMemory(0x46AA59, { 0x90, 0x90 });	// Required to force update FonixData.cdf path in TLS
+			CoInitializeEx(nullptr, 0);				// COM components
+			((void(*)())(0x934B90))();				// BSResource (filesystem)
+			((void(*)())(0x469FE0))();				// LipSynchManager::Init()
+			PatchMemory(0x46AA59, { 0x90, 0x90 });	// Required to force update FonixData.cdf path in TLS
 
-		// Add logging. Must be done after static constructors.
-		((int(*)(void *))(0x8BF320))(&CreationKit::FaceFXLogCallback);
-		DetourFunction(0x40AFC0, &CreationKit::LogCallback);
+			// Add logging. Must be done after static constructors.
+			((int(*)(void *))(0x8BF320))(&CreationKit::FaceFXLogCallback);
+			DetourFunction(0x40AFC0, &CreationKit::LogCallback);
 
-		return true;
+			return true;
+		}
+		else if (Version == GameVersion::Fallout4)
+		{
+			// Kill MemoryContextTracker ctor/dtor
+			PatchMemory(0x1C4D530, { 0xC2, 0x10, 0x00 });
+			PatchMemory(0x1C4D5F0, { 0xC3 });
+			PatchMemory(0x1C4D85A, { 0x5F, 0x5E, 0xC3 });
+
+			// Replace memory allocators with malloc and kill initializers
+			PatchMemory(0x573520, { 0xC3 });
+			DetourFunction(0x1C4B8A0, &CreationKit::MemoryManager_Alloc);
+			DetourFunction(0x1C4BC30, &CreationKit::MemoryManager_Free);
+			DetourFunction(0x1C4B530, &CreationKit::ScrapHeap_Alloc);
+			DetourFunction(0x1C4B590, &CreationKit::ScrapHeap_Free);
+
+			// Patch BSOStream::Write in LipSynchAnim::SaveToFile to use our own file handling
+			PatchMemory(0x95CC07, { 0x0 });// Kill +0x4 pointer adjustment
+			PatchMemory(0x95CC11, { 0x0 });// Kill +0x4 pointer adjustment
+			DetourFunction(0x95CC08, &LipSynchAnim::hk_call_00587816, true);
+			DetourFunction(0x95CC12, &LipSynchAnim::hk_call_00587816, true);
+
+			// Prevent D3DCompiler.dll from being loaded
+			PatchMemory(0x24A6490, { 0xC3 });
+
+			// Kill the log writer thread functionality
+			PatchMemory(0x7050F0, { 0x33, 0xC0, 0xC3 });
+			PatchMemory(0x7055E3, { 0x90, 0x90 });
+			PatchMemory(0x21D8E40, { 0xC2, 0x08, 0x00 });
+
+			// Patch WinMain in order to only run CRT initialization
+			PatchMemory(0x732150, { 0xC2, 0x10, 0x00 });
+			PatchMemory(0x2755AD8, { 0xE9, 0x84, 0x00, 0x00, 0x00 });
+			((void(__cdecl *)())(0x27559AD))();
+
+			CoInitializeEx(nullptr, 0);										// COM components
+			((void(*)())(0x209EED0))();										// BSResource (filesystem)
+			((void(*)())(0x702800))();										// LipSynchManager::Init()
+			PatchMemory(0x702F0C, { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 });	// Required to force update FonixData.cdf path in TLS
+
+			// Add logging. Must be done after static constructors.
+			((int(*)(void *))(0x105BD10))(&CreationKit::FaceFXLogCallback);
+			DetourFunction(0x1C490D0, &CreationKit::LogCallback);
+
+			return true;
+		}
+
+		return false;
 	}
 
-	bool MapExecutable()
+	bool MapExecutable(GameVersion Version)
 	{
 		ForceReference();
 
 		HMODULE module = GetModuleHandleA(nullptr);
+		uint32_t resourceId = 0;
+
+		if (Version == GameVersion::SkyrimOrEarlier)
+			resourceId = IDR_CK_LIP_BINARY1;
+		else if (Version == GameVersion::Fallout4)
+			resourceId = IDR_CK_LIP_BINARY2;
 
 		// Decompress the embedded exe and then initialize it
-		HRSRC resource = FindResourceA(module, MAKEINTRESOURCE(IDR_CK_LIP_BINARY1), "CK_LIP_BINARY");
+		HRSRC resource = FindResourceA(module, MAKEINTRESOURCE(resourceId), "CK_LIP_BINARY");
 		uint32_t resourceSize = SizeofResource(module, resource);
 
 		if (!resource || resourceSize <= 0)
@@ -98,43 +161,61 @@ namespace Loader
 		return true;
 	}
 
-	void MapTLS()
+	bool MapTLS(GameVersion Version)
 	{
 		// Allocate an arbitrary memory region to replace TLS accesses. MemoryModule doesn't handle static TLS slots. These variables are
 		// static on purpose.
-#include "LoaderTLS.inl"
-
-		static int *tlsIndex = reinterpret_cast<int *>(0x1E97DC0);
 		static void *tlsRegion = VirtualAlloc(nullptr, 64 * 1024, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 		static void **pointerToTlsRegionPointer = &tlsRegion;
 
 		// 64 A1 2C 00 00 00		mov eax, large fs:2Ch
 		// 64 8B 0D 2C 00 00 00		mov ecx, large fs:2Ch
-		uint8_t data[7];
-		memset(data, 0x90, sizeof(data));
-
-		for (uintptr_t addr : TLSPatchAddresses)
+		auto patchTLSAccess = [](uintptr_t Address)
 		{
-			if (*(uint8_t *)(addr + 0x1) == 0xA1)
+			uint8_t data[7];
+			memset(data, 0x90, sizeof(data));
+
+			if (*(uint8_t *)(Address + 0x1) == 0xA1)
 			{
 				data[1] = 0xA1;
 				*(void **)&data[2] = &pointerToTlsRegionPointer;
 
-				PatchMemory(addr, data, 6);
+				PatchMemory(Address, data, 6);
 			}
 			else
 			{
-				*(uint16_t *)&data[1] = *(uint16_t *)(addr + 0x1);
+				*(uint16_t *)&data[1] = *(uint16_t *)(Address + 0x1);
 				*(void **)&data[3] = &pointerToTlsRegionPointer;
 
-				PatchMemory(addr, data, 7);
+				PatchMemory(Address, data, 7);
 			}
+		};
+
+		if (Version == GameVersion::SkyrimOrEarlier)
+		{
+#include "LoaderTLS_SK.inl"
+
+			for (uintptr_t addr : TLSPatchAddresses_SK)
+				patchTLSAccess(addr);
+
+			return true;
 		}
+		else if (Version == GameVersion::Fallout4)
+		{
+#include "LoaderTLS_F4.inl"
+
+			for (uintptr_t addr : TLSPatchAddresses_F4)
+				patchTLSAccess(addr);
+
+			return true;
+		}
+
+		return false;
 	}
 
 	void SaveResourceToDisk()
 	{
-		auto generateBin = [](const char *Source, const char *Dest)
+		auto generateCompressedBin = [](const char *Source, const char *Dest)
 		{
 			if (FILE *f; fopen_s(&f, Source, "rb") == 0)
 			{
@@ -154,8 +235,8 @@ namespace Loader
 			}
 		};
 
-		generateBin("E:\\Program Files (x86)\\Steam\\steamapps\\common\\Fallout 4\\Tools\\LipGen\\CreationKit32.exe", "compressed_ck_f4.bin");
-		generateBin("E:\\Program Files (x86)\\Steam\\steamapps\\common\\skyrim\\CreationKit.exe.unpacked.exe", "compressed_ck_sk.bin");
+		generateCompressedBin("E:\\Program Files (x86)\\Steam\\steamapps\\common\\Fallout 4\\Tools\\LipGen\\CreationKit32.exe", "compressed_ck_f4.bin");
+		generateCompressedBin("E:\\Program Files (x86)\\Steam\\steamapps\\common\\skyrim\\CreationKit.exe.unpacked.exe", "compressed_ck_sk.bin");
 	}
 
 	void ForceReference()
@@ -164,11 +245,17 @@ namespace Loader
 		FORCE_LOAD_REQUIRED_DATA[sizeof(FORCE_LOAD_REQUIRED_DATA) - 1] = 0;
 	}
 
+	GameVersion GetGameVersion()
+	{
+		return CurrentGameVersion;
+	}
+
 	HCUSTOMMODULE MmGetLibrary(LPCSTR Name, void *Userdata)
 	{
 		static const char *moduleBlacklist[] =
 		{
 			"SSCE5432.DLL",
+			"SSCE5532.DLL",
 			"D3D9.DLL",
 			"DSOUND.DLL",
 			"STEAM_API.DLL",
@@ -176,12 +263,13 @@ namespace Loader
 			"DBGHELP.DLL",
 			"D3DX9_42.DLL",
 			"XINPUT1_3.DLL",
+			"GFSDK_GODRAYSLIB.WIN32.DLL",
 		};
 
 		// Check for blacklisted DLLs first
-		for (const char *mod : moduleBlacklist)
+		for (auto module : moduleBlacklist)
 		{
-			if (!_stricmp(Name, mod))
+			if (!_stricmp(Name, module))
 				return BAD_DLL;
 		}
 
@@ -200,7 +288,7 @@ namespace Loader
 	{
 		auto addr = reinterpret_cast<uintptr_t>(Address);
 
-		if (addr >= 0x400000 && (addr + Size) <= 0x1FC9000)
+		if (addr >= MinExeVirtualAddress && (addr + Size) <= MaxExeVirtualAddress)
 		{
 			auto minAddr = reinterpret_cast<uintptr_t>(&FORCE_LOAD_REQUIRED_DATA[0]);
 			auto maxAddr = reinterpret_cast<uintptr_t>(&FORCE_LOAD_REQUIRED_DATA[sizeof(FORCE_LOAD_REQUIRED_DATA)]);
@@ -209,7 +297,7 @@ namespace Loader
 			if (addr < minAddr)
 				__debugbreak();
 
-			if ((addr + Size) > maxAddr)
+			if ((addr + Size) >= maxAddr)
 				__debugbreak();
 
 			DWORD old;

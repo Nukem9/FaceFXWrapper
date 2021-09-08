@@ -23,9 +23,6 @@
     <ClInclude Include="LipSynchAnim.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="LoaderTLS.inl">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\dependencies\MemoryModule.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -57,6 +54,13 @@
     <ResourceCompile Include="FFXW32.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\resources\compressed_rsrc.bin" />
+    <None Include="..\resources\compressed_ck_sk.bin" />
+    <None Include="..\resources\compressed_ck_f4.bin" />
+    <None Include="LoaderTLS_F4.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="LoaderTLS_SK.inl">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

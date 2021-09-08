@@ -84,6 +84,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -97,7 +98,6 @@
     <ClInclude Include="CreationKit32.h" />
     <ClInclude Include="LipSynchAnim.h" />
     <ClInclude Include="Loader.h" />
-    <ClInclude Include="LoaderTLS.inl" />
     <ClInclude Include="..\dependencies\MemoryModule.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="..\dependencies\stb.h" />
@@ -114,7 +114,10 @@
     <ResourceCompile Include="FFXW32.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\resources\compressed_rsrc.bin" />
+    <None Include="..\resources\compressed_ck_sk.bin" />
+    <None Include="..\resources\compressed_ck_f4.bin" />
+    <None Include="LoaderTLS_SK.inl" />
+    <None Include="LoaderTLS_F4.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

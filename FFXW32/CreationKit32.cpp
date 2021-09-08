@@ -10,7 +10,17 @@ namespace CreationKit
 		{
 			// Manually patch Fonix.cdf lookup path - alternate global variable
 			auto fonixPathPtr = reinterpret_cast<uintptr_t>(&tempPath);
-			Loader::PatchMemory(0x469CA8, reinterpret_cast<uint8_t *>(&fonixPathPtr), sizeof(fonixPathPtr));
+
+			switch (Loader::GetGameVersion())
+			{
+			case Loader::GameVersion::SkyrimOrEarlier:
+				Loader::PatchMemory(0x469CA8, reinterpret_cast<uint8_t *>(&fonixPathPtr), sizeof(fonixPathPtr));
+				break;
+
+			case Loader::GameVersion::Fallout4:
+				Loader::PatchMemory(0x702F27, reinterpret_cast<uint8_t *>(&fonixPathPtr), sizeof(fonixPathPtr));
+				break;
+			}
 
 			return true;
 		}();
@@ -26,7 +36,17 @@ namespace CreationKit
 		{
 			// Manually patch language - alternate global variable
 			auto languagePtr = reinterpret_cast<uintptr_t>(&tempLanguage);
-			Loader::PatchMemory(0x11B0AEC, reinterpret_cast<uint8_t *>(&languagePtr), sizeof(languagePtr));
+
+			switch (Loader::GetGameVersion())
+			{
+			case Loader::GameVersion::SkyrimOrEarlier:
+				Loader::PatchMemory(0x11B0AEC, reinterpret_cast<uint8_t *>(&languagePtr), sizeof(languagePtr));
+				break;
+
+			case Loader::GameVersion::Fallout4:
+				Loader::PatchMemory(0x2E065A0, reinterpret_cast<uint8_t *>(&languagePtr), sizeof(languagePtr));
+				break;
+			}
 
 			return true;
 		}();
@@ -38,10 +58,20 @@ namespace CreationKit
 	void SetFaceFXAutoResampling(bool Resample)
 	{
 		// If automatic resampling is disabled, the resampled wav must exist already. The original wav file path will be unused.
-		if (Resample)
-			Loader::PatchMemory(0x470BA0, { 0x81, 0xEC, 0x68, 0x01, 0x00, 0x00 });
-		else
-			Loader::PatchMemory(0x470BA0, { 0xB0, 0x01, 0xC3 });
+		if (Loader::GetGameVersion() == Loader::GameVersion::SkyrimOrEarlier)
+		{
+			if (Resample)
+				Loader::PatchMemory(0x470BA0, { 0x81, 0xEC, 0x68, 0x01, 0x00, 0x00 });
+			else
+				Loader::PatchMemory(0x470BA0, { 0xB0, 0x01, 0xC3 });
+		}
+		else if (Loader::GetGameVersion() == Loader::GameVersion::Fallout4)
+		{
+			if (Resample)
+				Loader::PatchMemory(0x719090, { 0x55, 0x8B, 0xEC });
+			else
+				Loader::PatchMemory(0x719090, { 0xB0, 0x01, 0xC3 });
+		}
 	}
 
 	void FaceFXLogCallback(const char *Text, int Type)
@@ -66,8 +96,10 @@ namespace CreationKit
 		if (Size <= 0)
 			Size = 1;
 
-		void *data = malloc(Size);
-		return memset(data, 0, Size);
+		if (void *data = malloc(Size); data)
+			return memset(data, 0, Size);
+
+		return nullptr;
 	}
 
 	void __fastcall MemoryManager_Free(void *Thisptr, void *_EDX, void *Ptr, bool Aligned)
@@ -78,13 +110,15 @@ namespace CreationKit
 		free(Ptr);
 	}
 
-	void *ScrapHeap_Alloc(uint32_t Size)
+	void *__fastcall ScrapHeap_Alloc(void **Thisptr, void *_EDX, uint32_t Size, uint32_t Alignment)
 	{
-		return MemoryManager_Alloc(nullptr, nullptr, Size, 0, false);
+		*Thisptr = MemoryManager_Alloc(nullptr, nullptr, Size, Alignment, Alignment != 0);
+		return Thisptr;
 	}
 
-	void ScrapHeap_Free(void *Ptr)
+	void __fastcall ScrapHeap_Free(void **Thisptr)
 	{
-		MemoryManager_Free(nullptr, nullptr, Ptr, false);
+		if (Thisptr)
+			MemoryManager_Free(nullptr, nullptr, *Thisptr, false);
 	}
 }

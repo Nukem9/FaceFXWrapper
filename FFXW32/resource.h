@@ -3,6 +3,7 @@
 // Used by FFXW32.rc
 //
 #define IDR_CK_LIP_BINARY1              104
+#define IDR_CK_LIP_BINARY2              105
 
 // Next default values for new objects
 // 

@@ -1,20 +1,35 @@
 #include "CreationKit32.h"
 #include "LipSynchAnim.h"
 
-LipSynchAnim *LipSynchAnim::Generate(const char *WavPath, const char *ResamplePath, const char *DialogueText, void *FaceFXPhonemeData)
+LipSynchAnim *LipSynchAnim::Generate(const char *WavPath, const char *ResamplePath, const char *DialogueText)
 {
-	return ((LipSynchAnim * (__cdecl *)(const char *, const char *, const char *, const char *, void *))(0x46ACD0))
-		(WavPath, ResamplePath, "", DialogueText, FaceFXPhonemeData);
+	if (Loader::GetGameVersion() == Loader::GameVersion::SkyrimOrEarlier)
+	{
+		return ((LipSynchAnim *(__cdecl *)(const char *, const char *, const char *, const char *, void *))(0x46ACD0))
+			(WavPath, ResamplePath, "", DialogueText, nullptr);
+	}
+	else if (Loader::GetGameVersion() == Loader::GameVersion::Fallout4)
+	{
+		return ((LipSynchAnim *(__cdecl *)(const char *, const char *, const char *, const char *, void *, void *))(0x702160))
+			(WavPath, ResamplePath, "", DialogueText, *(void **)0x3F1DDA4, nullptr);
+	}
+
+	return nullptr;
 }
 
-bool LipSynchAnim::SaveToFile(const char *Path, bool Compress, int NumTargets, bool FacegenDefault)
+bool LipSynchAnim::SaveToFile(const char *Path, bool Compress, bool FacegenDefault)
 {
 	if (FILE *f; fopen_s(&f, Path, "wb") == 0)
 	{
 		// Warning: sub_587730 has been manually patched to take a FILE handle
-		bool result = ((bool(__thiscall *)(LipSynchAnim *, FILE *, bool, int, int))(0x587730))(this, f, Compress, NumTargets, FacegenDefault);
-		fclose(f);
+		bool result = false;
 
+		if (Loader::GetGameVersion() == Loader::GameVersion::SkyrimOrEarlier)
+			result = ((bool(__thiscall *)(LipSynchAnim *, FILE *, bool, int, int))(0x587730))(this, f, Compress, DefaultNumTargetsSkyrim, FacegenDefault);
+		else if (Loader::GetGameVersion() == Loader::GameVersion::Fallout4)
+			result = ((bool(__thiscall *)(LipSynchAnim *, FILE *, bool, int, int))(0x95CB30))(this, f, Compress, DefaultNumTargetsFallout4, FacegenDefault);
+
+		fclose(f);
 		return result;
 	}
 
@@ -23,7 +38,11 @@ bool LipSynchAnim::SaveToFile(const char *Path, bool Compress, int NumTargets, b
 
 void LipSynchAnim::Free()
 {
-	((void(__thiscall *)(LipSynchAnim *))(0x586A40))(this);
+	if (Loader::GetGameVersion() == Loader::GameVersion::SkyrimOrEarlier)
+		((void(__thiscall *)(LipSynchAnim *))(0x586A40))(this);
+	else if (Loader::GetGameVersion() == Loader::GameVersion::Fallout4)
+		((void(__thiscall *)(LipSynchAnim *))(0x95BC90))(this);
+
 	CreationKit::MemoryManager_Free(nullptr, nullptr, this, false);
 }
 

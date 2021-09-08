@@ -35,6 +35,6 @@ namespace CreationKit
 
 	void *__fastcall MemoryManager_Alloc(void *Thisptr, void *_EDX, uint32_t Size, uint32_t Alignment, bool Aligned);
 	void __fastcall MemoryManager_Free(void *Thisptr, void *_EDX, void *Ptr, bool Aligned);
-	void *ScrapHeap_Alloc(uint32_t Size);
-	void ScrapHeap_Free(void *Ptr);
+	void *__fastcall ScrapHeap_Alloc(void **Thisptr, void *_EDX, uint32_t Size, uint32_t Alignment);
+	void __fastcall ScrapHeap_Free(void **Thisptr);
 }

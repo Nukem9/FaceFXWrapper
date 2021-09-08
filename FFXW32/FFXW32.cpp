@@ -14,12 +14,12 @@ bool RunLipGeneration(const char *Language, const char *FonixDataPath, const cha
 	CreationKit::SetFaceFXLanguage(Language);
 	CreationKit::SetFaceFXAutoResampling(Resample);
 
-	auto lipAnim = LipSynchAnim::Generate(WavPath, ResampledWavPath, Text, nullptr);
+	auto lipAnim = LipSynchAnim::Generate(WavPath, ResampledWavPath, Text);
 
 	if (!lipAnim)
 		return false;
 
-	bool result = lipAnim->SaveToFile(LipPath, true, 16, true);
+	bool result = lipAnim->SaveToFile(LipPath, true, true);
 
 	lipAnim->Free();
 	return result;
@@ -123,7 +123,7 @@ bool StartCreationKitIPC(uint32_t ProcessID)
 
 		if (!std::exchange(loaderInitialized, true))
 		{
-			if (!Loader::Initialize())
+			if (!Loader::Initialize(Loader::GameVersion::SkyrimOrEarlier))
 				break;
 		}
 
@@ -162,9 +162,6 @@ bool StartCreationKitIPC(uint32_t ProcessID)
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	Loader::SaveResourceToDisk();
-	return 0;
-
 	// Create the IPC tunnel if this was launched from CreationKit.exe
 	if (const char *pid = getenv("Ckpid"); pid && strlen(pid) > 0)
 	{
@@ -182,14 +179,26 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 		freopen("CONOUT$", "w", stderr);
 	}
 
+	auto initVersionFromArgv = []()
+	{
+		if (!_stricmp(__argv[1], "Skyrim"))
+			return Loader::Initialize(Loader::GameVersion::SkyrimOrEarlier);
+
+		if (!_stricmp(__argv[1], "Fallout4"))
+			return Loader::Initialize(Loader::GameVersion::Fallout4);
+
+		printf("Unknown generator type \"%s\"\n", __argv[1]);
+		return false;
+	};
+
 	switch (__argc)
 	{
-	case 6:
-		if (!Loader::Initialize())
+	case 7:
+		if (!initVersionFromArgv())
 			return 1;
 
 		// Resampling disabled - use same path for WavPath and ResampledWavPath
-		if (!RunLipGeneration(__argv[1], __argv[2], __argv[3], __argv[3], __argv[4], __argv[5], false))
+		if (!RunLipGeneration(__argv[2], __argv[3], __argv[4], __argv[4], __argv[5], __argv[6], false))
 		{
 			printf("LIP generation failed\n");
 			return 1;
@@ -197,11 +206,11 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 		return 0;
 
-	case 7:
-		if (!Loader::Initialize())
+	case 8:
+		if (!initVersionFromArgv())
 			return 1;
 
-		if (!RunLipGeneration(__argv[1], __argv[2], __argv[3], __argv[4], __argv[5], __argv[6], true))
+		if (!RunLipGeneration(__argv[2], __argv[3], __argv[4], __argv[5], __argv[6], __argv[7], true))
 		{
 			printf("LIP generation failed\n");
 			return 1;
@@ -211,12 +220,12 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	default:
 		printf("\n\nUsage:\n");
-		printf("\tFaceFXWrapper [Lang] [FonixDataPath] [WavPath] [ResampledWavPath] [LipPath] [Text]\n");
-		printf("\tFaceFXWrapper [Lang] [FonixDataPath] [ResampledWavPath] [LipPath] [Text]\n");
+		printf("\tFaceFXWrapper [Type] [Lang] [FonixDataPath] [WavPath] [ResampledWavPath] [LipPath] [Text]\n");
+		printf("\tFaceFXWrapper [Type] [Lang] [FonixDataPath] [ResampledWavPath] [LipPath] [Text]\n");
 		printf("\n");
 		printf("Examples:\n");
-		printf("\tFaceFXWrapper \"USEnglish\" \"C:\\FonixData.cdf\" \"C:\\input.wav\" \"C:\\input_resampled.wav\" \"C:\\output.lip\" \"Blah Blah Blah\"\n");
-		printf("\tFaceFXWrapper \"USEnglish\" \"C:\\FonixData.cdf\" \"C:\\input_resampled.wav\" \"C:\\output.lip\" \"Blah Blah Blah\"\n");
+		printf("\tFaceFXWrapper \"Skyrim\" \"USEnglish\" \"C:\\FonixData.cdf\" \"C:\\input.wav\" \"C:\\input_resampled.wav\" \"C:\\output.lip\" \"Blah Blah Blah\"\n");
+		printf("\tFaceFXWrapper \"Fallout4\" \"USEnglish\" \"C:\\FonixData.cdf\" \"C:\\input_resampled.wav\" \"C:\\output.lip\" \"Blah Blah Blah\"\n");
 		printf("\n");
 
 		return 1;
