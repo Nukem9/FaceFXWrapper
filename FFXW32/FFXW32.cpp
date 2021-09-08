@@ -3,7 +3,7 @@
 #include <thread>
 #include <atomic>
 #include "Loader.h"
-#include "CreationKit.h"
+#include "CreationKit32.h"
 #include "LipSynchAnim.h"
 
 std::atomic_uint32_t g_CreationKitPID;
@@ -162,6 +162,9 @@ bool StartCreationKitIPC(uint32_t ProcessID)
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+	Loader::SaveResourceToDisk();
+	return 0;
+
 	// Create the IPC tunnel if this was launched from CreationKit.exe
 	if (const char *pid = getenv("Ckpid"); pid && strlen(pid) > 0)
 	{

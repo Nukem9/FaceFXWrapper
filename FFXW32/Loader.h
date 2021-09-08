@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <initializer_list>
 #include <type_traits>
-#include "MemoryModule.h"
+#include <MemoryModule.h>
 
 namespace Loader
 {

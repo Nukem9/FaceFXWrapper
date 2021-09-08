@@ -1,6 +1,6 @@
-#include "stb.h"
+#include <stb.h>
 #include "resource.h"
-#include "CreationKit.h"
+#include "CreationKit32.h"
 #include "LipSynchAnim.h"
 #include "Loader.h"
 
@@ -134,16 +134,28 @@ namespace Loader
 
 	void SaveResourceToDisk()
 	{
-		/*
-			CUZJTEUgKmY7DQoNCglpZiAoZm9wZW5fcygmZiwgIkNyZWF0aW9uS2l0LnVucGF
-			ja2VkLmV4ZSIsICJyYiIpID09IDApDQoJew0KCQlmc2VlayhmLCAwLCBTRUVLX0
-			VORCk7DQoJCWxvbmcgc2l6ZSA9IGZ0ZWxsKGYpOw0KCQlyZXdpbmQoZik7DQoNC
-			gkJY2hhciAqZXhlRGF0YSA9IG5ldyBjaGFyW3NpemVdOw0KCQlmcmVhZChleGVE
-			YXRhLCBzaXplb2YoY2hhciksIHNpemUsIGYpOw0KCQlzdGJfY29tcHJlc3NfdG9
-			maWxlKChjaGFyICopImNvbXByZXNzZWRfcnNyYy5iaW4iLCBleGVEYXRhLCBzaX
-			plKTsNCgkJZmNsb3NlKGYpOw0KCQlkZWxldGVbXSBleGVEYXRhOw0KCX0NCg0KC
-			XJldHVybiAwOw==
-		*/
+		auto generateBin = [](const char *Source, const char *Dest)
+		{
+			if (FILE *f; fopen_s(&f, Source, "rb") == 0)
+			{
+				fseek(f, 0, SEEK_END);
+				long size = ftell(f);
+				rewind(f);
+
+				auto exeData = new char[size];
+				fread(exeData, sizeof(char), size, f);
+
+				char temp[1024];
+				strcpy_s(temp, Dest);
+				stb_compress_tofile(temp, exeData, size);
+
+				delete[] exeData;
+				fclose(f);
+			}
+		};
+
+		generateBin("E:\\Program Files (x86)\\Steam\\steamapps\\common\\Fallout 4\\Tools\\LipGen\\CreationKit32.exe", "compressed_ck_f4.bin");
+		generateBin("E:\\Program Files (x86)\\Steam\\steamapps\\common\\skyrim\\CreationKit.exe.unpacked.exe", "compressed_ck_sk.bin");
 	}
 
 	void ForceReference()

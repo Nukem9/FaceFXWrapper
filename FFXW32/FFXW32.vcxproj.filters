@@ -11,19 +11,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MemoryModule.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="stb.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CreationKit.h">
+    <ClInclude Include="CreationKit32.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="LipSynchAnim.h">
@@ -32,15 +26,15 @@
     <ClInclude Include="LoaderTLS.inl">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\dependencies\MemoryModule.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\dependencies\stb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="skyrim32_ckt.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MemoryModule.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="stb.c">
+    <ClCompile Include="FFXW32.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Loader.cpp">
@@ -49,14 +43,20 @@
     <ClCompile Include="LipSynchAnim.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CreationKit.cpp">
+    <ClCompile Include="CreationKit32.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\MemoryModule.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dependencies\stb.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="skyrim32_ckt.rc" />
+    <ResourceCompile Include="FFXW32.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="compressed_rsrc.bin" />
+    <None Include="..\resources\compressed_rsrc.bin" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-#include "CreationKit.h"
+#include "CreationKit32.h"
 #include "LipSynchAnim.h"
 
 LipSynchAnim *LipSynchAnim::Generate(const char *WavPath, const char *ResamplePath, const char *DialogueText, void *FaceFXPhonemeData)
