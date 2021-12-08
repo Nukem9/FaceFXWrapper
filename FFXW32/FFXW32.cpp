@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <thread>
 #include <atomic>
+#include <array>
 #include "Loader.h"
 #include "CreationKit32.h"
 #include "LipSynchAnim.h"
@@ -51,7 +52,7 @@ void IPCExitNotificationThread()
 	CloseHandle(parentProcess);
 }
 
-bool StartCreationKitIPC(uint32_t ProcessID)
+int StartCreationKitIPC(uint32_t ProcessID)
 {
 	// Disable any kind of buffering when using printf or related functions
 	setvbuf(stdout, NULL, _IONBF, 0);
@@ -66,7 +67,7 @@ bool StartCreationKitIPC(uint32_t ProcessID)
 	if (!mapping)
 	{
 		printf("Could not create file mapping object (%d).\n", GetLastError());
-		return false;
+		return 1;
 	}
 
 	auto tunnel = reinterpret_cast<CreationKit::LipGenTunnel *>(MapViewOfFile(mapping, FILE_MAP_ALL_ACCESS, 0, 0, 0x40000));
@@ -76,7 +77,7 @@ bool StartCreationKitIPC(uint32_t ProcessID)
 		printf("Could not map view of file (%d).\n", GetLastError());
 
 		CloseHandle(mapping);
-		return false;
+		return 1;
 	}
 
 	sprintf_s(temp, "CkNotifyEvent%d", ProcessID);
@@ -91,7 +92,7 @@ bool StartCreationKitIPC(uint32_t ProcessID)
 
 		UnmapViewOfFile(tunnel);
 		CloseHandle(mapping);
-		return false;
+		return 1;
 	}
 
 	// Thread to check for parent process exit
@@ -157,28 +158,11 @@ bool StartCreationKitIPC(uint32_t ProcessID)
 	CloseHandle(mapping);
 
 	g_CreationKitPID = 0;
-	return true;
+	return 0;
 }
 
-int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+int StartCommandLine()
 {
-	// Create the IPC tunnel if this was launched from CreationKit.exe
-	if (const char *pid = getenv("Ckpid"); pid && strlen(pid) > 0)
-	{
-		if (!StartCreationKitIPC(atoi(pid)))
-			return 1;
-
-		return 0;
-	}
-
-	// Use command line processing instead
-	if (AttachConsole(ATTACH_PARENT_PROCESS))
-	{
-		freopen("CONIN$", "r", stdin);
-		freopen("CONOUT$", "w", stdout);
-		freopen("CONOUT$", "w", stderr);
-	}
-
 	auto initVersionFromArgv = []()
 	{
 		if (!_stricmp(__argv[1], "Skyrim"))
@@ -232,4 +216,42 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	}
 
 	return 0;
+}
+
+int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+{
+	// Create the IPC tunnel if this was launched from CreationKit.exe
+	if (const char *pid = getenv("Ckpid"); pid && strlen(pid) > 0)
+	{
+		int result = StartCreationKitIPC(atoi(pid));
+		return result;
+	}
+
+	// Use command line processing instead
+	std::array<FILE *, 3> handles {};
+	bool attached = AttachConsole(ATTACH_PARENT_PROCESS);
+
+	if (attached)
+	{
+		handles[0] = freopen("CONIN$", "r", stdin);
+		handles[1] = freopen("CONOUT$", "w", stdout);
+		handles[2] = freopen("CONOUT$", "w", stderr);
+	}
+
+	int result = StartCommandLine();
+
+	if (attached)
+	{
+		for (auto handle : handles)
+		{
+			if (handle)
+				fclose(handle);
+		}
+
+		// Prevent the parent console from hanging after main returns
+		SendMessageA(GetConsoleWindow(), WM_CHAR, VK_RETURN, 0);
+		FreeConsole();
+	}
+
+	return result;
 }

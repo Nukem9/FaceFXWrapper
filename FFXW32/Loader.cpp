@@ -1,4 +1,4 @@
-#include <stb.h>
+#include "stb.h"
 #include "resource.h"
 #include "CreationKit32.h"
 #include "LipSynchAnim.h"
